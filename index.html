@@ -56,45 +56,66 @@
         const status = document.getElementById('status');
 
         btn.onclick = async () => {
-            btn.disabled = true;
-            status.innerText = "📡 Rilevamento GPS in corso...";
-            
-            const nome = document.getElementById('userName').value;
-            const email = document.getElementById('userEmail').value;
-            document.getElementById('userForm').style.display = 'none';
+        btn.disabled = true;
+        status.innerText = "📡 Rilevamento GPS in corso...";
+        
+        // Recuperiamo i dati utente (se i campi esistono e sono stati compilati)
+        const nameInput = document.getElementById('userName');
+        const emailInput = document.getElementById('userEmail');
+        const nome = nameInput ? nameInput.value : "";
+        const email = emailInput ? emailInput.value : "";
+        
+        // Nascondiamo il form per pulire l'interfaccia
+        const userForm = document.getElementById('userForm');
+        if (userForm) userForm.style.display = 'none';
 
-            navigator.geolocation.getCurrentPosition(async (pos) => {
-                status.innerText = "✅ Posizione acquisita. Connessione...";
-                avviaConnessione(pos.coords.latitude, pos.coords.longitude, nome, email);
-            }, () => { 
-                status.innerText = "⚠️ GPS Negato. Uso posizione generica."; 
-                // Coordinate di default (es. Comacchio) se l'utente nega il GPS
-                avviaConnessione(44.67, 12.18, nome, email);
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            status.innerText = "✅ Posizione acquisita. Connessione...";
+            await avviaConnessione(pos.coords.latitude, pos.coords.longitude, nome, email);
+        }, async () => { 
+            status.innerText = "⚠️ GPS Negato. Uso posizione generica."; 
+            // Coordinate di default (es. Comacchio) se l'utente nega il GPS
+            await avviaConnessione(44.67, 12.18, nome, email);
+        });
+    };
+
+    async function avviaConnessione(lat, lon, nome, email) {
+        try {
+            // 1. Inizializziamo la stanza LiveKit
+            const room = new LivekitClient.Room();
+            room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+                if (track.kind === 'audio') track.attach(); // Agganciamo l'audio dell'IA al browser
             });
-        };
 
-        async function avviaConnessione(lat, lon, nome, email) {
-            try {
-                const room = new LivekitClient.Room();
-                room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
-                    if (track.kind === 'audio') track.attach();
-                });
+            // 2. Connessione al server
+            await room.connect(url, token);
+            await room.startAudio();
 
-                await room.connect(url, token);
-                await room.startAudio();
+            // 3. CREIAMO IL PACCHETTO DATI PER PYTHON
+            // La chiave "tipo: 'gps'" è fondamentale perché l'agent.py la sta cercando!
+            const gpsData = JSON.stringify({ 
+                tipo: 'gps', 
+                lat: lat, 
+                lon: lon, 
+                nome: nome, 
+                email: email 
+            });
 
-                // Inviamo GPS + Dati Utente a Python
-                const userData = JSON.stringify({ tipo: 'init_data', lat: lat, lon: lon, nome: nome, email: email });
-                await room.localParticipant.publishData(new TextEncoder().encode(userData), { reliable: true });
-                await room.localParticipant.setMicrophoneEnabled(true);
-                
-                status.innerText = "🎙️ Livia è online. Parla pure!";
-                btn.style.display = "none";
-            } catch (e) {
-                status.innerText = "❌ Errore server LiveKit";
-                btn.disabled = false;
-            }
+            // 4. Inviamo il pacchetto al backend (questo fa scattare il saluto di Livia)
+            await room.localParticipant.publishData(new TextEncoder().encode(gpsData), { reliable: true });
+            
+            // 5. Attiviamo il microfono dell'utente
+            await room.localParticipant.setMicrophoneEnabled(true);
+            
+            status.innerText = "🎙️ Livia è online. Parla pure!";
+            btn.style.display = "none";
+
+        } catch (e) {
+            console.error("Errore di connessione LiveKit:", e);
+            status.innerText = "❌ Errore server LiveKit";
+            btn.disabled = false;
         }
-    </script>
+    }
+</script>
 </body>
 </html>
