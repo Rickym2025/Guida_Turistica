@@ -82,28 +82,34 @@
                 status.innerText = `✅ Trovato! Connessione alla guida in corso...`;
 
                 try {
-                    // 2. Ci connettiamo a LiveKit (NOTA: Ora si chiama LivekitClient)
+                    // 2. Creiamo la stanza
                     const room = new LivekitClient.Room();
-                    await room.connect(url, token);
 
-                    // 3. Inviamo le coordinate di nascosto a Python!
-                    const gpsData = JSON.stringify({ tipo: 'gps', lat: lat, lon: lon });
-                    const encoder = new TextEncoder();
-                    await room.localParticipant.publishData(encoder.encode(gpsData), { reliable: true });
-
-                    // 4. Accendiamo il microfono
-                    await room.localParticipant.setMicrophoneEnabled(true);
-                    status.innerText = "🎙️ In ascolto... Parla pure!";
-                    btn.innerText = "In conversazione...";
-
-                    // 5. Facciamo uscire l'audio dell'agente dalle casse
-                    // (NOTA: Anche qui usa LivekitClient)
+                    // 3. IMPORTANTE: Diciamo al sito di ascoltare l'agente PRIMA di connetterci!
                     room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
                         if (track.kind === 'audio') {
                             const audioElement = track.attach();
                             document.body.appendChild(audioElement);
                         }
                     });
+
+                    // 4. Ora ci connettiamo a LiveKit Cloud
+                    await room.connect(url, token);
+                    
+                    // (Opzionale ma consigliato) Sblocca l'audio nei browser rigidi
+                    await room.startAudio();
+
+                    // 5. Inviamo le coordinate di nascosto a Python
+                    const gpsData = JSON.stringify({ tipo: 'gps', lat: lat, lon: lon });
+                    const encoder = new TextEncoder();
+                    await room.localParticipant.publishData(encoder.encode(gpsData), { reliable: true });
+
+                    // 6. Accendiamo il microfono
+                    await room.localParticipant.setMicrophoneEnabled(true);
+                    status.innerText = "🎙️ In ascolto... Parla pure!";
+                    btn.innerText = "In conversazione...";
+
+                } catch (e) {
 
                 } catch (e) {
                     status.innerText = "❌ Errore di connessione al server.";
