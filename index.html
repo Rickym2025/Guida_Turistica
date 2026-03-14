@@ -9,119 +9,92 @@
     
     <style>
         :root { --glass: rgba(255, 255, 255, 0.15); }
-        
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Outfit', sans-serif; overflow: hidden; color: white; }
-
-        /* Video Sfondo */
-        #bg-video {
-            position: fixed; right: 0; bottom: 0; min-width: 100%; min-height: 100%;
-            z-index: -2; object-fit: cover; filter: brightness(50%) saturate(1.2);
-        }
-
-        .container {
-            display: flex; align-items: center; justify-content: center; height: 100vh;
-            background: radial-gradient(circle, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.5) 100%);
-        }
-
-        /* Card Glass 3D */
-        .glass-card {
-            background: var(--glass);
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 50px;
-            padding: 60px;
-            text-align: center;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.1);
-            max-width: 450px; width: 90%;
-            transition: transform 0.5s ease;
-        }
-
-        h1 { font-size: 2.8rem; margin: 10px 0; font-weight: 700; letter-spacing: -1px; }
-        .subtitle { opacity: 0.7; font-size: 1.1rem; margin-bottom: 40px; }
-
-        /* Radar Animato Evoluto */
-        .radar-box {
-            position: relative; width: 120px; height: 120px; margin: 0 auto 30px;
-            display: flex; align-items: center; justify-content: center; font-size: 50px;
-            background: rgba(255,255,255,0.1); border-radius: 50%;
-        }
-        .pulse {
-            position: absolute; width: 100%; height: 100%; border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 50%; animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
-        }
-        @keyframes ping { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.8); opacity: 0; } }
-
-        /* Pulsante Moderno */
-        .btn-start {
-            background: white; color: #004d40; border: none; padding: 20px 40px;
-            font-size: 1.2rem; font-weight: 700; border-radius: 30px;
-            cursor: pointer; transition: 0.3s; box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-        }
+        #bg-video { position: fixed; right: 0; bottom: 0; min-width: 100%; min-height: 100%; z-index: -2; object-fit: cover; filter: brightness(40%) saturate(1.2); }
+        .container { display: flex; align-items: center; justify-content: center; height: 100vh; background: radial-gradient(circle, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.6) 100%); }
+        .glass-card { background: var(--glass); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 40px; padding: 50px; text-align: center; box-shadow: 0 30px 60px rgba(0,0,0,0.4); max-width: 400px; width: 90%; }
+        h1 { font-size: 2.5rem; margin: 10px 0; font-weight: 700; }
+        .subtitle { opacity: 0.8; font-size: 1rem; margin-bottom: 30px; }
+        
+        /* Form Utente */
+        .input-group { margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; }
+        input { padding: 12px 20px; border-radius: 20px; border: none; background: rgba(255,255,255,0.9); font-family: 'Outfit'; font-size: 1rem; outline: none; }
+        
+        .btn-start { background: white; color: #004d40; border: none; padding: 15px 35px; font-size: 1.1rem; font-weight: 700; border-radius: 30px; cursor: pointer; transition: 0.3s; width: 100%; }
         .btn-start:hover { transform: scale(1.05); }
         .btn-start:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        #status { margin-top: 25px; font-size: 0.9rem; letter-spacing: 1px; opacity: 0.8; }
+        #status { margin-top: 20px; font-size: 0.9rem; opacity: 0.9; }
     </style>
 </head>
-
 <body>
 
     <video autoplay muted loop id="bg-video" playsinline>
-    <source src="video_chioggia.mp4" type="video/mp4">
-    Il tuo browser non supporta il tag video.
-</video>
+        <source src="video_chioggia.mp4" type="video/mp4">
+    </video>
 
     <div class="container">
         <div class="glass-card">
-            <div class="radar-box" id="radar">
-                <div class="pulse"></div>
-                <span id="icon">🌍</span>
-            </div>
             <h1>Guida del Delta</h1>
-            <p class="subtitle">Intelligenza artificiale locale.<br>Inquadra, clicca e parla.</p>
+            <p class="subtitle">La tua guida vocale intelligente.</p>
+            
+            <div class="input-group" id="userForm">
+                <input type="text" id="userName" placeholder="Il tuo Nome (Opzionale)">
+                <input type="email" id="userEmail" placeholder="La tua Email per sconti (Opzionale)">
+            </div>
+
             <button id="startBtn" class="btn-start">📍 Avvia la Guida</button>
             <div id="status">Pronta per connettersi</div>
         </div>
     </div>
 
     <script>
+        // Sostituisci con URL e Token corretti generati dal tuo server
         const url = "wss://n8n-97js9kpk.livekit.cloud"; 
         const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiVHVyaXN0YSIsInZpZGVvIjp7InJvb21Kb2luIjp0cnVlLCJyb29tIjoiZGVsdGEtcG8tdGVzdCIsImNhblB1Ymxpc2giOnRydWUsImNhblN1YnNjcmliZSI6dHJ1ZSwiY2FuUHVibGlzaERhdGEiOnRydWV9LCJzdWIiOiJ0dXJpc3RhIiwiaXNzIjoiQVBJbXpBRjdOQ2YyRWZiIiwibmJmIjoxNzczNDc4MTAzLCJleHAiOjE4MDUwMTQxMDN9.5lw4nd3MpC0IV50Yi5EUoUy1dvmho2uF3Ir2G4Uqfbo"; 
 
         const btn = document.getElementById('startBtn');
         const status = document.getElementById('status');
-        const icon = document.getElementById('icon');
 
         btn.onclick = async () => {
             btn.disabled = true;
             status.innerText = "📡 Rilevamento GPS in corso...";
             
+            const nome = document.getElementById('userName').value;
+            const email = document.getElementById('userEmail').value;
+            document.getElementById('userForm').style.display = 'none';
+
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 status.innerText = "✅ Posizione acquisita. Connessione...";
-                
-                try {
-                    const room = new LivekitClient.Room();
-                    room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
-                        if (track.kind === 'audio') track.attach();
-                    });
-
-                    await room.connect(url, token);
-                    await room.startAudio();
-
-                    const gpsData = JSON.stringify({ tipo: 'gps', lat: pos.coords.latitude, lon: pos.coords.longitude });
-                    await room.localParticipant.publishData(new TextEncoder().encode(gpsData), { reliable: true });
-                    await room.localParticipant.setMicrophoneEnabled(true);
-                    
-                    status.innerText = "🎙️ Livia è online. Parla pure!";
-                    icon.innerText = "🎙️";
-                    btn.style.display = "none";
-                } catch (e) {
-                    status.innerText = "❌ Errore server";
-                    btn.disabled = false;
-                }
-            }, () => { status.innerText = "❌ GPS Negato"; btn.disabled = false; });
+                avviaConnessione(pos.coords.latitude, pos.coords.longitude, nome, email);
+            }, () => { 
+                status.innerText = "⚠️ GPS Negato. Uso posizione generica."; 
+                // Coordinate di default (es. Comacchio) se l'utente nega il GPS
+                avviaConnessione(44.67, 12.18, nome, email);
+            });
         };
+
+        async function avviaConnessione(lat, lon, nome, email) {
+            try {
+                const room = new LivekitClient.Room();
+                room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+                    if (track.kind === 'audio') track.attach();
+                });
+
+                await room.connect(url, token);
+                await room.startAudio();
+
+                // Inviamo GPS + Dati Utente a Python
+                const userData = JSON.stringify({ tipo: 'init_data', lat: lat, lon: lon, nome: nome, email: email });
+                await room.localParticipant.publishData(new TextEncoder().encode(userData), { reliable: true });
+                await room.localParticipant.setMicrophoneEnabled(true);
+                
+                status.innerText = "🎙️ Livia è online. Parla pure!";
+                btn.style.display = "none";
+            } catch (e) {
+                status.innerText = "❌ Errore server LiveKit";
+                btn.disabled = false;
+            }
+        }
     </script>
 </body>
 </html>
