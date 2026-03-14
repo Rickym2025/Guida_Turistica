@@ -53,28 +53,32 @@
         const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiVHVyaXN0YSIsInZpZGVvIjp7InJvb21Kb2luIjp0cnVlLCJyb29tIjoiZGVsdGEtcG8tdGVzdCIsImNhblB1Ymxpc2giOnRydWUsImNhblN1YnNjcmliZSI6dHJ1ZSwiY2FuUHVibGlzaERhdGEiOnRydWV9LCJzdWIiOiJ0dXJpc3RhIiwiaXNzIjoiQVBJbXpBRjdOQ2YyRWZiIiwibmJmIjoxNzczNDc4MTAzLCJleHAiOjE4MDUwMTQxMDN9.5lw4nd3MpC0IV50Yi5EUoUy1dvmho2uF3Ir2G4Uqfbo"; 
 
         const btn = document.getElementById('startBtn');
-        const status = document.getElementById('status');
+    const status = document.getElementById('status');
 
-        btn.onclick = async () => {
+    // Assicuriamoci che l'audio non venga bloccato dal browser creando un div nascosto
+    const audioContainer = document.createElement('div');
+    audioContainer.id = "audio-container";
+    document.body.appendChild(audioContainer);
+
+    btn.onclick = async () => {
         btn.disabled = true;
         status.innerText = "📡 Rilevamento GPS in corso...";
         
-        // Recuperiamo i dati utente (se i campi esistono e sono stati compilati)
-        const nameInput = document.getElementById('userName');
+        const nomeInput = document.getElementById('userName');
         const emailInput = document.getElementById('userEmail');
-        const nome = nameInput ? nameInput.value : "";
-        const email = emailInput ? emailInput.value : "";
+        // Usiamo trim() per eliminare spazi vuoti accidentali inseriti dall'utente
+        const nome = nomeInput ? nomeInput.value.trim() : "";
+        const email = emailInput ? emailInput.value.trim() : "";
         
-        // Nascondiamo il form per pulire l'interfaccia
         const userForm = document.getElementById('userForm');
         if (userForm) userForm.style.display = 'none';
 
         navigator.geolocation.getCurrentPosition(async (pos) => {
             status.innerText = "✅ Posizione acquisita. Connessione...";
             await avviaConnessione(pos.coords.latitude, pos.coords.longitude, nome, email);
-        }, async () => { 
+        }, async (err) => { 
+            console.warn("GPS fallito:", err);
             status.innerText = "⚠️ GPS Negato. Uso posizione generica."; 
-            // Coordinate di default (es. Comacchio) se l'utente nega il GPS
             await avviaConnessione(44.67, 12.18, nome, email);
         });
     };
@@ -83,37 +87,29 @@
         try {
             const room = new LivekitClient.Room();
             
-            // FIX 1: Evitiamo che il browser blocchi l'audio. Appiccichiamo l'audio alla pagina!
             room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
                 if (track.kind === 'audio') {
                     const audioElement = track.attach();
-                    document.body.appendChild(audioElement); // <-- FONDAMENTALE!
+                    audioContainer.appendChild(audioElement);
                 }
             });
 
-            // Ci connettiamo e accendiamo il microfono
             await room.connect(url, token);
             await room.startAudio();
             await room.localParticipant.setMicrophoneEnabled(true);
 
-            // FIX 2: Creiamo la funzione che spedisce il GPS...
             const spedisciDati = async () => {
                 const gpsData = JSON.stringify({ 
                     tipo: 'gps', lat: lat, lon: lon, nome: nome, email: email 
                 });
                 await room.localParticipant.publishData(new TextEncoder().encode(gpsData), { reliable: true });
-                console.log("✅ Pacchetto GPS inviato a Livia!");
+                console.log("✅ Pacchetto dati inviato:", gpsData);
             };
 
-            // ... ma aspettiamo a lanciarla! Livia è già nella stanza?
             if (room.participants.size > 0) {
-                // Sì, è già dentro. Le diamo mezzo secondo per "aprire le orecchie" e le tiriamo i dati.
                 setTimeout(spedisciDati, 500);
             } else {
-                // No, la stanza è vuota. Mettiamoci in attesa di vederla entrare.
-                room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
-                    console.log("🎙️ Livia è appena entrata nella stanza!");
-                    // Aspettiamo 1 secondo per assicurarci che sia pronta, poi le diamo i dati.
+                room.on(LivekitClient.RoomEvent.ParticipantConnected, () => {
                     setTimeout(spedisciDati, 1000); 
                 });
             }
@@ -122,8 +118,9 @@
             btn.style.display = "none";
 
         } catch (e) {
-            console.error("Errore LiveKit:", e);
-            status.innerText = "❌ Errore server LiveKit";
+            console.error("Errore Dettagliato LiveKit:", e);
+            // ORA VEDRAI L'ERRORE ESATTO A SCHERMO
+            status.innerText = "❌ Errore: " + (e.message || "Connessione fallita");
             btn.disabled = false;
         }
     }
