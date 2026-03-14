@@ -85,37 +85,44 @@
 
     async function avviaConnessione(lat, lon, nome, email) {
         try {
-            status.innerText = "⏳ Connessione al server... Attendi.";
+            status.innerText = "⏳ Connessione alla stanza...";
             const room = new LivekitClient.Room();
             
-            // LA VERA MAGIA È QUI: 
-            // Questo evento scatta SOLO quando l'Agente Python è entrato e ha acceso la sua voce.
+            // Questo serve sempre per farci sentire la sua voce
             room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
                 if (track.kind === 'audio') {
                     const audioElement = track.attach();
                     audioContainer.appendChild(audioElement);
-                    
-                    status.innerText = "✨ Livia sta per parlare...";
-
-                    // ORA SIAMO CERTI AL 100% CHE PYTHON È IN ASCOLTO.
-                    // Aspettiamo solo mezzo secondo di sicurezza e le "lanciamo" i dati.
-                    setTimeout(async () => {
-                        const gpsData = JSON.stringify({ 
-                            tipo: 'gps', lat: lat, lon: lon, nome: nome, email: email 
-                        });
-                        await room.localParticipant.publishData(new TextEncoder().encode(gpsData), { reliable: true });
-                        console.log("✅ Dati inviati! Livia ha ricevuto:", gpsData);
-                    }, 500);
                 }
             });
 
-            // Ci connettiamo e accendiamo il microfono dell'utente
+            // Ci connettiamo alla stanza
             await room.connect(url, token);
             await room.startAudio();
             await room.localParticipant.setMicrophoneEnabled(true);
-
-            // Togliamo il pulsante per non far cliccare due volte
             btn.style.display = "none";
+
+            // Funzione pronta a scattare per lanciare i dati
+            const lanciaDati = async () => {
+                status.innerText = "✨ Livia è qui! Attendi il saluto...";
+                // Aspettiamo 1 secondo di cortesia per farle aprire il microfono
+                setTimeout(async () => {
+                    const gpsData = JSON.stringify({ tipo: 'gps', lat: lat, lon: lon, nome: nome, email: email });
+                    await room.localParticipant.publishData(new TextEncoder().encode(gpsData), { reliable: true });
+                    console.log("✅ Dati inviati a Livia!");
+                }, 1000);
+            };
+
+            // CONTROLLO BLINDATO: Livia è già dentro?
+            if (room.remoteParticipants.size > 0) {
+                lanciaDati(); // Sì, è già dentro. Lanciamo subito!
+            } else {
+                status.innerText = "⏳ Attendo l'ingresso di Livia...";
+                // No, non c'è. Appena fa un passo dentro la stanza, lanciamo i dati!
+                room.once(LivekitClient.RoomEvent.ParticipantConnected, () => {
+                    lanciaDati();
+                });
+            }
 
         } catch (e) {
             console.error("Errore Dettagliato LiveKit:", e);
