@@ -53,20 +53,22 @@
         const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiVHVyaXN0YSIsInZpZGVvIjp7InJvb21Kb2luIjp0cnVlLCJyb29tIjoiZGVsdGEtcG8tdGVzdCIsImNhblB1Ymxpc2giOnRydWUsImNhblN1YnNjcmliZSI6dHJ1ZSwiY2FuUHVibGlzaERhdGEiOnRydWV9LCJzdWIiOiJ0dXJpc3RhIiwiaXNzIjoiQVBJbXpBRjdOQ2YyRWZiIiwibmJmIjoxNzczNDc4MTAzLCJleHAiOjE4MDUwMTQxMDN9.5lw4nd3MpC0IV50Yi5EUoUy1dvmho2uF3Ir2G4Uqfbo"; 
 
         const btn = document.getElementById('startBtn');
-        const status = document.getElementById('status');
+    const status = document.getElementById('status');
 
-    // Assicuriamoci che l'audio non venga bloccato dal browser creando un div nascosto
-    const audioContainer = document.createElement('div');
-    audioContainer.id = "audio-container";
-    document.body.appendChild(audioContainer);
+    // Creiamo un contenitore sicuro per l'audio di Livia
+    let audioContainer = document.getElementById("audio-container");
+    if (!audioContainer) {
+        audioContainer = document.createElement('div');
+        audioContainer.id = "audio-container";
+        document.body.appendChild(audioContainer);
+    }
 
     btn.onclick = async () => {
         btn.disabled = true;
-        status.innerText = "📡 Rilevamento GPS in corso...";
+        status.innerText = "📡 Rilevamento posizione...";
         
         const nomeInput = document.getElementById('userName');
         const emailInput = document.getElementById('userEmail');
-        // Usiamo trim() per eliminare spazi vuoti accidentali inseriti dall'utente
         const nome = nomeInput ? nomeInput.value.trim() : "";
         const email = emailInput ? emailInput.value.trim() : "";
         
@@ -74,40 +76,45 @@
         if (userForm) userForm.style.display = 'none';
 
         navigator.geolocation.getCurrentPosition(async (pos) => {
-            status.innerText = "✅ Posizione acquisita. Connessione...";
             await avviaConnessione(pos.coords.latitude, pos.coords.longitude, nome, email);
         }, async (err) => { 
             console.warn("GPS fallito:", err);
-            status.innerText = "⚠️ GPS Negato. Uso posizione generica."; 
-            await avviaConnessione(44.67, 12.18, nome, email);
+            await avviaConnessione(44.67, 12.18, nome, email); // Coordinate generiche
         });
     };
 
     async function avviaConnessione(lat, lon, nome, email) {
         try {
+            status.innerText = "⏳ Connessione al server... Attendi.";
             const room = new LivekitClient.Room();
             
+            // LA VERA MAGIA È QUI: 
+            // Questo evento scatta SOLO quando l'Agente Python è entrato e ha acceso la sua voce.
             room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
                 if (track.kind === 'audio') {
                     const audioElement = track.attach();
                     audioContainer.appendChild(audioElement);
+                    
+                    status.innerText = "✨ Livia sta per parlare...";
+
+                    // ORA SIAMO CERTI AL 100% CHE PYTHON È IN ASCOLTO.
+                    // Aspettiamo solo mezzo secondo di sicurezza e le "lanciamo" i dati.
+                    setTimeout(async () => {
+                        const gpsData = JSON.stringify({ 
+                            tipo: 'gps', lat: lat, lon: lon, nome: nome, email: email 
+                        });
+                        await room.localParticipant.publishData(new TextEncoder().encode(gpsData), { reliable: true });
+                        console.log("✅ Dati inviati! Livia ha ricevuto:", gpsData);
+                    }, 500);
                 }
             });
 
+            // Ci connettiamo e accendiamo il microfono dell'utente
             await room.connect(url, token);
             await room.startAudio();
             await room.localParticipant.setMicrophoneEnabled(true);
 
-            // METODO INFALLIBILE: Aspettiamo 1.5 secondi e poi tiriamo i dati a Livia
-            setTimeout(async () => {
-                const gpsData = JSON.stringify({ 
-                    tipo: 'gps', lat: lat, lon: lon, nome: nome, email: email 
-                });
-                await room.localParticipant.publishData(new TextEncoder().encode(gpsData), { reliable: true });
-                console.log("✅ Pacchetto Dati (Nome e GPS) inviato a Livia!");
-            }, 1500);
-            
-            status.innerText = "🎙️ Livia è online. Parla pure!";
+            // Togliamo il pulsante per non far cliccare due volte
             btn.style.display = "none";
 
         } catch (e) {
