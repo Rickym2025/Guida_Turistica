@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guida Turistica Delta del Po</title>
+    <!-- Importiamo la libreria di LiveKit per i siti web -->
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            margin-top: 10vh;
+            background: #e0f2f1;
+            color: #004d40;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+        }
+
+        #startBtn {
+            padding: 20px 40px;
+            font-size: 22px;
+            background: #00796b;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: 0.3s;
+        }
+
+        #startBtn:hover {
+            background: #004d40;
+            transform: scale(1.05);
+        }
+
+        #startBtn:disabled {
+            background: #b2dfdb;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #status {
+            margin-top: 30px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .radar {
+            font-size: 50px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="radar">🌿</div>
+    <h1>La tua Guida del Delta</h1>
+    <p>Inquadra, clicca e parla.</p>
+
+    <button id="startBtn">📍 Avvia la Guida</button>
+    <p id="status"></p>
+
+    <script>
+        const url = "wss://n8n-97js9kpk.livekit.cloud"; // Il tuo server
+        const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiVHVyaXN0YSIsInZpZGVvIjp7InJvb21Kb2luIjp0cnVlLCJyb29tIjoiZGVsdGEtcG8tdGVzdCIsImNhblB1Ymxpc2giOnRydWUsImNhblN1YnNjcmliZSI6dHJ1ZSwiY2FuUHVibGlzaERhdGEiOnRydWV9LCJzdWIiOiJ0dXJpc3RhIiwiaXNzIjoiQVBJbXpBRjdOQ2YyRWZiIiwibmJmIjoxNzczNDc4MTAzLCJleHAiOjE4MDUwMTQxMDN9.5lw4nd3MpC0IV50Yi5EUoUy1dvmho2uF3Ir2G4Uqfbo";
+
+        const btn = document.getElementById('startBtn');
+        const status = document.getElementById('status');
+
+        btn.onclick = async () => {
+            btn.disabled = true;
+            status.innerText = "📡 Cerco la tua posizione col GPS...";
+
+            // 1. Chiediamo il GPS al cellulare/PC
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+                status.innerText = `✅ Trovato! Connessione alla guida in corso...`;
+
+                try {
+                    // 2. Ci connettiamo a LiveKit
+                    const room = new LiveKit.Room();
+                    await room.connect(url, token);
+
+                    // 3. Inviamo le coordinate di nascosto a Python!
+                    const gpsData = JSON.stringify({ tipo: 'gps', lat: lat, lon: lon });
+                    const encoder = new TextEncoder();
+                    await room.localParticipant.publishData(encoder.encode(gpsData), { reliable: true });
+
+                    // 4. Accendiamo il microfono
+                    await room.localParticipant.setMicrophoneEnabled(true);
+                    status.innerText = "🎙️ In ascolto... Parla pure!";
+                    btn.innerText = "In conversazione...";
+
+                    // 5. Facciamo uscire l'audio dell'agente dalle casse
+                    room.on(LiveKit.RoomEvent.TrackSubscribed, (track) => {
+                        if (track.kind === 'audio') {
+                            const audioElement = track.attach();
+                            document.body.appendChild(audioElement);
+                        }
+                    });
+
+                } catch (e) {
+                    status.innerText = "❌ Errore di connessione al server.";
+                    console.error(e);
+                }
+
+            }, (err) => {
+                status.innerText = "❌ Errore: Devi consentire la posizione per usare la guida!";
+                btn.disabled = false;
+            });
+        };
+    </script>
+</body>
+
+</html>
