@@ -53,7 +53,7 @@
         const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiVHVyaXN0YSIsInZpZGVvIjp7InJvb21Kb2luIjp0cnVlLCJyb29tIjoiZGVsdGEtcG8tdGVzdCIsImNhblB1Ymxpc2giOnRydWUsImNhblN1YnNjcmliZSI6dHJ1ZSwiY2FuUHVibGlzaERhdGEiOnRydWV9LCJzdWIiOiJ0dXJpc3RhIiwiaXNzIjoiQVBJbXpBRjdOQ2YyRWZiIiwibmJmIjoxNzczNDc4MTAzLCJleHAiOjE4MDUwMTQxMDN9.5lw4nd3MpC0IV50Yi5EUoUy1dvmho2uF3Ir2G4Uqfbo"; 
 
         const btn = document.getElementById('startBtn');
-    const status = document.getElementById('status');
+        const status = document.getElementById('status');
 
     // Assicuriamoci che l'audio non venga bloccato dal browser creando un div nascosto
     const audioContainer = document.createElement('div');
@@ -98,28 +98,20 @@
             await room.startAudio();
             await room.localParticipant.setMicrophoneEnabled(true);
 
-            const spedisciDati = async () => {
+            // METODO INFALLIBILE: Aspettiamo 1.5 secondi e poi tiriamo i dati a Livia
+            setTimeout(async () => {
                 const gpsData = JSON.stringify({ 
                     tipo: 'gps', lat: lat, lon: lon, nome: nome, email: email 
                 });
                 await room.localParticipant.publishData(new TextEncoder().encode(gpsData), { reliable: true });
-                console.log("✅ Pacchetto dati inviato:", gpsData);
-            };
-
-            if (room.participants.size > 0) {
-                setTimeout(spedisciDati, 500);
-            } else {
-                room.on(LivekitClient.RoomEvent.ParticipantConnected, () => {
-                    setTimeout(spedisciDati, 1000); 
-                });
-            }
+                console.log("✅ Pacchetto Dati (Nome e GPS) inviato a Livia!");
+            }, 1500);
             
             status.innerText = "🎙️ Livia è online. Parla pure!";
             btn.style.display = "none";
 
         } catch (e) {
             console.error("Errore Dettagliato LiveKit:", e);
-            // ORA VEDRAI L'ERRORE ESATTO A SCHERMO
             status.innerText = "❌ Errore: " + (e.message || "Connessione fallita");
             btn.disabled = false;
         }
