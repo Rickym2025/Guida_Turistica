@@ -92,9 +92,14 @@
                     await room.localParticipant.publishData(encoder.encode(gpsData), { reliable: true });
 
                     // 4. Accendiamo il microfono
-                    await room.localParticipant.setMicrophoneEnabled(true);
-                    status.innerText = "🎙️ In ascolto... Parla pure!";
-                    btn.innerText = "In conversazione...";
+                    try {
+                        await room.localParticipant.setMicrophoneEnabled(true);
+                        status.innerText = "🎙️ In ascolto... Parla pure!";
+                        btn.innerText = "In conversazione...";
+                    } catch (micError) {
+                        status.innerText = "❌ Permesso microfono negato!";
+                        console.error("Errore mic:", micError);
+                    }
 
                     // 5. Facciamo uscire l'audio dell'agente dalle casse
                     room.on(LiveKit.RoomEvent.TrackSubscribed, (track) => {
